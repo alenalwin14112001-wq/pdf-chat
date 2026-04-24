@@ -3,7 +3,7 @@ import pickle
 import faiss
 import numpy as np
 import os
-import google.generativeai as genai
+import google-generativeai as genai
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
