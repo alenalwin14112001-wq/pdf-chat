@@ -1,4 +1,9 @@
-﻿langchain
-langgraph
+streamlit
+groq
 faiss-cpu
-openai
+rank-bm25
+pypdf2
+sentence-transformers
+langchain-text-splitters
+python-dotenv
+numpy
