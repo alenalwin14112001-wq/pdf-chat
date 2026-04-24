@@ -1,0 +1,4 @@
+﻿langchain
+langgraph
+faiss-cpu
+openai
