@@ -3,7 +3,7 @@ import pickle
 import faiss
 import numpy as np
 import os
-from groq import Groq
+import google.generativeai as genai
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -275,26 +275,28 @@ def answer_query(query, model, index, chunks, bm25, chunk_pages, chat_history):
     retrieved_pages = [r[1] for r in retrieved]
     context = "\n\n---\n\n".join(retrieved_chunks)
 
-    messages = [{"role": "system", "content": f"""You are a helpful professional assistant. Answer the user's question using ONLY the context below.
+    history_text = ""
+    for msg in chat_history[-6:]:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        history_text += f"{role}: {msg['content']}\n"
+
+    prompt = f"""You are a helpful professional assistant. Answer the user's question using ONLY the context below.
 If the answer is not in the context, say "I don't have enough information to answer that."
 
 Context:
-{context}"""}]
+{context}
 
-    for msg in chat_history[-6:]:
-        if msg["role"] in ("user", "assistant"):
-            messages.append({"role": msg["role"], "content": msg["content"]})
+Previous conversation:
+{history_text}
+Question: {query}
 
-    messages.append({"role": "user", "content": query})
+Answer:"""
 
-    client = Groq(api_key=config.GROQ_API_KEY)
-    response = client.chat.completions.create(
-        model=config.LLM_MODEL,
-        messages=messages,
-        max_tokens=1024,
-        temperature=0.2,
-    )
-    return response.choices[0].message.content, retrieved_chunks, retrieved_pages
+    genai.configure(api_key=config.GOOGLE_API_KEY)
+    gemini = genai.GenerativeModel(config.LLM_MODEL)
+    response = gemini.generate_content(prompt)
+
+    return response.text, retrieved_chunks, retrieved_pages
 
 
 # ── Sidebar ────────────────────────────────────────────────

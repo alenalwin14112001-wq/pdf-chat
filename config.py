@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    # Groq
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    LLM_MODEL: str = "llama-3.3-70b-versatile"  # Free & powerful!
+    # Google Gemini
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+    LLM_MODEL: str = "gemini-2.0-flash"
 
     # Embeddings
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
@@ -14,7 +14,7 @@ class Config:
     # Indexing
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 100
-    TOP_K: int = 5
+    TOP_K: int = 3
 
     # Hybrid retrieval weights
     VECTOR_WEIGHT: float = 0.7
