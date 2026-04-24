@@ -1,5 +1,5 @@
 streamlit
-groq
+google-generativeai
 faiss-cpu
 rank-bm25
 pypdf2
