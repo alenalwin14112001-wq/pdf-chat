@@ -292,13 +292,19 @@ Question: {query}
 
 Answer:"""
 
-    genai.configure(api_key=config.GOOGLE_API_KEY)
-    gemini = genai.GenerativeModel(config.LLM_MODEL)
-    response = gemini.generate_content(prompt)
-
-    return response.text, retrieved_chunks, retrieved_pages
-
-
+    try:
+        genai.configure(api_key=config.GOOGLE_API_KEY)
+        gemini = genai.GenerativeModel(config.LLM_MODEL)
+        response = gemini.generate_content(prompt)
+        return response.text, retrieved_chunks, retrieved_pages
+    except Exception as e:
+        error_msg = str(e)
+        if "ResourceExhausted" in error_msg or "429" in error_msg:
+            return "⚠️ API quota exceeded. Please try again after a few minutes or contact the app owner.", retrieved_chunks, retrieved_pages
+        elif "APIConnectionError" in error_msg:
+            return "⚠️ Connection error. Please check your internet connection and try again.", retrieved_chunks, retrieved_pages
+        else:
+            return f"⚠️ An error occurred: {error_msg[:200]}", retrieved_chunks, retrieved_pages
 # ── Sidebar ────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 📄 PDF Chat")
