@@ -5,4 +5,4 @@ data/
 __pycache__/
 *.pkl
 *.pyc
-*.faiss
+*.faiss.streamlit/secrets.toml

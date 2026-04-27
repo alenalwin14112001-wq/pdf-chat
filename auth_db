@@ -1,48 +1,69 @@
 """
 auth_db.py — PostgreSQL user management for report_gen
 Handles: table creation, register, login, session tokens
+Supports both local .env and Streamlit Cloud secrets
 """
 import os
-import hashlib
 import secrets
 import psycopg2
 import bcrypt
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 
-load_dotenv()
-
-DB_CONFIG = {
-    "host":     os.getenv("PG_HOST", "localhost"),
-    "port":     int(os.getenv("PG_PORT", 5432)),
-    "dbname":   os.getenv("PG_DB", "reportgen_db"),
-    "user":     os.getenv("PG_USER", "postgres"),
-    "password": os.getenv("PG_PASSWORD", ""),
-}
+# ── Config — works for both local and Streamlit Cloud ────────────────────────
+def get_db_config():
+    try:
+        import streamlit as st
+        return {
+            "host":     st.secrets["PG_HOST"],
+            "port":     int(st.secrets["PG_PORT"]),
+            "dbname":   st.secrets["PG_DB"],
+            "user":     st.secrets["PG_USER"],
+            "password": st.secrets["PG_PASSWORD"],
+            "sslmode":  "require",
+        }
+    except Exception:
+        from dotenv import load_dotenv
+        load_dotenv()
+        return {
+            "host":     os.getenv("PG_HOST", "localhost"),
+            "port":     int(os.getenv("PG_PORT", 5432)),
+            "dbname":   os.getenv("PG_DB", "reportgen_db"),
+            "user":     os.getenv("PG_USER", "postgres"),
+            "password": os.getenv("PG_PASSWORD", ""),
+        }
 
 
 def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(**get_db_config())
 
 
 def init_db():
-    """Create users and sessions tables if they don't exist."""
+    """Create users, sessions and password_reset_tokens tables if they don't exist."""
     sql = """
     CREATE TABLE IF NOT EXISTS users (
-        id          SERIAL PRIMARY KEY,
-        full_name   TEXT NOT NULL,
-        email       TEXT UNIQUE NOT NULL,
+        id            SERIAL PRIMARY KEY,
+        full_name     TEXT NOT NULL,
+        email         TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
-        created_at  TIMESTAMP DEFAULT NOW(),
-        is_active   BOOLEAN DEFAULT TRUE
+        created_at    TIMESTAMP DEFAULT NOW(),
+        is_active     BOOLEAN DEFAULT TRUE
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
-        id          SERIAL PRIMARY KEY,
-        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        token       TEXT UNIQUE NOT NULL,
-        expires_at  TIMESTAMP NOT NULL,
-        created_at  TIMESTAMP DEFAULT NOW()
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        token      TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        token      TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used       BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
     );
     """
     with get_connection() as conn:
@@ -51,13 +72,9 @@ def init_db():
         conn.commit()
 
 
-# ── Registration ────────────────────────────────────────────────────────────
+# ── Registration ──────────────────────────────────────────────────────────────
 
 def register_user(full_name: str, email: str, password: str) -> dict:
-    """
-    Register a new user.
-    Returns {"success": True, "user_id": int} or {"success": False, "error": str}
-    """
     if len(password) < 8:
         return {"success": False, "error": "Password must be at least 8 characters."}
 
@@ -79,13 +96,9 @@ def register_user(full_name: str, email: str, password: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-# ── Login ────────────────────────────────────────────────────────────────────
+# ── Login ─────────────────────────────────────────────────────────────────────
 
 def login_user(email: str, password: str) -> dict:
-    """
-    Verify credentials and create a session token.
-    Returns {"success": True, "token": str, "user": dict} or {"success": False, "error": str}
-    """
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -106,7 +119,6 @@ def login_user(email: str, password: str) -> dict:
         if not bcrypt.checkpw(password.encode(), password_hash.encode()):
             return {"success": False, "error": "Invalid email or password."}
 
-        # Create session token (expires in 24 hours)
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now() + timedelta(hours=24)
 
@@ -127,12 +139,9 @@ def login_user(email: str, password: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-# ── Session validation ───────────────────────────────────────────────────────
+# ── Session validation ────────────────────────────────────────────────────────
 
 def validate_session(token: str) -> dict | None:
-    """
-    Return user dict if token is valid and not expired, else None.
-    """
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -154,7 +163,6 @@ def validate_session(token: str) -> dict | None:
 
 
 def logout_user(token: str):
-    """Delete session token from DB."""
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
