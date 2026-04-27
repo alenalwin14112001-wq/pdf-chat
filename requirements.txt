@@ -7,3 +7,5 @@ sentence-transformers
 langchain-text-splitters
 python-dotenv
 numpy
+psycopg2-binary
+bcrypt
