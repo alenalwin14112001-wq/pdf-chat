@@ -3,9 +3,11 @@ google-generativeai
 faiss-cpu
 rank-bm25
 pypdf2
-sentence-transformers
 langchain-text-splitters
 python-dotenv
 numpy
 psycopg2-binary
 bcrypt
+sentence-transformers==2.2.2
+torch==2.0.1
+transformers==4.30.0
